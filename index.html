@@ -266,7 +266,7 @@
 
         // Choisis ton fichier de base ici
         supportsWebP((isSupported) => {
-            const panoFile = isSupported ? "test7.webp" : "backgroundstatiqueexportepourleweb.png"; 
+            const panoFile = isSupported ? "test7.webp" : "backgroundstatiqueexportepourleweb.png";
             createPhotoDome(panoFile);
         });
 
@@ -294,6 +294,14 @@
             214 * (Math.PI / 180)
         ];
         const radius = 400;
+
+        // Nouvelle liste pour les textes des cercles
+        const circleLabels = [
+            "Bienvenue",
+            "Compte Sésame",
+            "Intranet étudiant",
+            "Étudier à la BU"
+        ];
 
         const videoContainer = document.getElementById("videoContainer");
         const videoPlayer = document.getElementById("videoPlayer");
@@ -323,7 +331,8 @@
                 }
                 mesh.parent = pivot;
 
-                const circle = createCircle(index + 1, file);
+                // On utilise le nouveau tableau `circleLabels` pour le texte
+                const circle = createCircle(index + 1, circleLabels[index]);
                 circleMap.set(mesh, circle);
 
                 circle.addEventListener('click', () => {
