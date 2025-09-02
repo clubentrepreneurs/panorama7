@@ -1,0 +1,371 @@
+<!DOCTYPE html> 
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>GLB + cercles + panorama + menu</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <link href="https://fonts.cdnfonts.com/css/apex-new" rel="stylesheet">     <style>
+        html, body {
+            margin: 0;
+            overflow: hidden;
+            height: 100%;
+            touch-action: none;
+            background: none;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+            background-color: transparent !important;
+        }
+
+        /* === Texte ajouté === */
+/* === Texte stylisé avec effet bounce === */
+#customText {
+  position: absolute;
+  bottom: 5vh; /* ⇦ placé en bas de la page */
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Apex New', sans-serif;
+  font-size: clamp(24px, 4vw, 48px); /* ⇦ taille entre 16px et 48px selon largeur écran */
+  font-weight: heavy;
+  text-align: center;
+  color: black;
+  z-index: 2000;
+  line-height: 1.2;
+  background-color: transparent;
+  padding: 1em 2em;
+  border-radius: 0;
+  max-width: 90vw;
+  word-wrap: break-word;
+  cursor: pointer; /* Ajout pour indiquer que le texte est cliquable */
+  transition: font-size 0.3s ease-in-out; /* Ajout pour une transition douce */
+}
+
+
+/* Zoom doux au clic */
+#customText.zoomed {
+  font-size: clamp(36px, 6vw, 72px);
+  transform: translateX(-50%) scale(1.1);
+}
+
+/* Keyframes effet bounce */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -200%) scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, 20%) scale(1.05);
+  }
+  80% {
+    transform: translate(-50%, -10%) scale(0.95);
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+
+/* Nouveau style pour le zoom */
+#customText.zoomed {
+  font-size: clamp(36px, 6vw, 72px); /* Nouvelle taille de police plus grande */
+}
+
+
+        /* === Styles pour le menu Hamburger === */
+        #menu-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001; /* reste au-dessus du canvas */
+        }
+        #hamburger-button {
+            width: 30px;
+            height: 25px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+        #hamburger-button .line {
+            width: 100%;
+            height: 3px;
+            background-color: black;
+            transition: all 0.3s ease-in-out;
+        }
+        #menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 1000;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            padding: 60px 20px 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+            font-family: 'Apex New', sans-serif;
+            box-sizing: border-box;
+        }
+        #menu-overlay.open {
+            transform: translateX(0);
+        }
+
+        /* === Cercles animés (conservés) === */
+        .circleContainer {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .circle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid red;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        .circle::after {
+            content: "";
+            position: absolute;
+            width: 0%;
+            height: 0%;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 0, 0, 0.7);
+            transform: scale(0);
+            animation: growFade 2s infinite ease-out;
+            animation-delay: 0.5s;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        @keyframes growFade {
+            0% { transform: scale(0); opacity: 0.7; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        /* === Texte overlay des GLB (conservé) === */
+        .text-overlay {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: black;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: sans-serif;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            margin-top: 5px;
+        }
+
+        /* === Vidéo responsive (inchangé) === */
+        #videoContainer {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; max-width: 800px;
+            aspect-ratio: 16/9;
+            display: none;
+            z-index: 100;
+            background: black;
+        }
+        #videoContainer iframe {
+            width: 100%; height: 100%;
+            border: none;
+        }
+        #closeButton {
+            position: absolute;
+            top: -40px; right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 101;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+        <div id="customText">
+        REUSSIR A L'UNIVERSITE<br>
+        Toutes les vidéos
+    </div>
+
+        <div id="menu-container">
+        <button id="hamburger-button">
+            <span class="line"></span>
+            <span class="line"></span>
+            <span class="line"></span>
+        </button>
+    </div>
+    <div id="menu-overlay">
+        <h2>Menu</h2>
+        <ul>
+            <li><a href="#">Élément 1</a></li>
+            <li><a href="#">Élément 2</a></li>
+            <li><a href="#">Élément 3</a></li>
+        </ul>
+    </div>
+    
+        <div id="videoContainer">
+        <button id="closeButton">Fermer</button>
+        <iframe id="videoPlayer" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    </div>
+
+        <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, alpha: true });
+        const scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+        const camera = new BABYLON.ArcRotateCamera("cam", Math.PI/2, Math.PI/2.5, 300, new BABYLON.Vector3(0,0,0), scene);
+        camera.attachControl(canvas, true);
+
+        new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+        const dome = new BABYLON.PhotoDome("panorama", "test7.png", { resolution: 32, size: 1000 }, scene);
+        dome.imageMode = BABYLON.PhotoDome.MODE_MONOSCOPIC;
+
+        const domeMat = dome.mesh.material;
+        domeMat.diffuseTexture.hasAlpha = true;
+        domeMat.useAlphaFromDiffuseTexture = true;
+        domeMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+        domeMat.backFaceCulling = false;
+        domeMat.needDepthPrePass = true;
+
+        const circleMap = new Map();
+        function createCircle(id, text) {
+            const container = document.createElement("div");
+            container.id = "circle_" + id;
+            container.classList.add("circleContainer");
+            container.innerHTML = `<div class="circle"></div><div class="text-overlay">${text}</div>`;
+            document.body.appendChild(container);
+            return container;
+        }
+
+        const glbFiles = ["agenda2.glb", "2.glb", "3.glb", "4.glb"];
+        const videoUrls = [
+            "https://www.youtube.com/watch?v=lUU1G-6klpI",
+            "https://www.youtube.com/watch?v=SWIDVGO3Gg0",
+            "https://www.youtube.com/watch?v=Jgcb7hjdgaU",
+            "https://www.youtube.com/watch?v=T6CI_hIbJIA"
+        ];
+        const customAngles = [
+            0.5 * (Math.PI / 180),
+            302 * (Math.PI / 180),
+            112.5 * (Math.PI / 180),
+            214 * (Math.PI / 180)
+        ];
+        const radius = 400;
+
+        const videoContainer = document.getElementById("videoContainer");
+        const videoPlayer = document.getElementById("videoPlayer");
+        const closeButton = document.getElementById("closeButton");
+
+        function getEmbedUrl(url) {
+            const videoId = url.split('v=')[1];
+            return `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&playsinline=1&autoplay=1`;
+        }
+
+        glbFiles.forEach((file, index) => {
+            BABYLON.SceneLoader.ImportMesh("", "./", file, scene, function(meshes, particleSystems, skeletons, animationGroups) {
+                if (!meshes || meshes.length === 0) {
+                    console.warn(`Aucun mesh trouvé dans ${file}.`);
+                    return;
+                }
+                const mesh = meshes[0];
+                if (animationGroups) {
+                    animationGroups.forEach(ag => ag.start(true));
+                }
+                mesh.scaling = new BABYLON.Vector3(50, 50, 50);
+
+                const pivot = new BABYLON.TransformNode("pivot_" + index, scene);
+                mesh.position.z = radius;
+                if (customAngles[index] !== undefined) {
+                    pivot.rotation.y = customAngles[index];
+                }
+                mesh.parent = pivot;
+
+                const circle = createCircle(index + 1, file);
+                circleMap.set(mesh, circle);
+
+                circle.addEventListener('click', () => {
+                    const embedUrl = getEmbedUrl(videoUrls[index]);
+                    videoPlayer.src = embedUrl;
+                    videoContainer.style.display = "block";
+                    camera.detachControl(canvas);
+                });
+            });
+        });
+
+        closeButton.addEventListener('click', () => {
+            videoPlayer.src = "";
+            videoContainer.style.display = "none";
+            camera.attachControl(canvas, true);
+        });
+
+        engine.runRenderLoop(() => {
+            scene.render();
+            circleMap.forEach((circle, mesh) => {
+                if (!mesh) return;
+                const worldCenter = mesh.getBoundingInfo().boundingSphere.centerWorld;
+                const pos = BABYLON.Vector3.Project(
+                    worldCenter,
+                    BABYLON.Matrix.IdentityReadOnly,
+                    scene.getTransformMatrix(),
+                    camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+                );
+                if (pos.z >= 0 && pos.z <= 1) {
+                    circle.style.left = `${pos.x}px`;
+                    circle.style.top = `${pos.y}px`;
+                    circle.style.transform = "translate(-50%, -50%)";
+                    circle.style.visibility = "visible";
+                } else {
+                    circle.style.visibility = "hidden";
+                }
+            });
+        });
+
+        window.addEventListener("resize", () => engine.resize());
+
+        const hamburgerButton = document.getElementById('hamburger-button');
+        const menuOverlay = document.getElementById('menu-overlay');
+        hamburgerButton.addEventListener('click', () => {
+            menuOverlay.classList.toggle('open');
+        });
+        
+        // Ajout du code pour le zoom du texte
+        const customText = document.getElementById("customText");
+        customText.addEventListener("click", () => {
+          customText.classList.toggle("zoomed");
+        });
+    </script>
+</body>
+</html>
+
